@@ -1,0 +1,27 @@
+- name: Create user Hadoop
+  ansible.builtin.user:
+    name: "{{ hadoop_user }}"
+    home: "{{ hadoop_user_home }}"
+    generate_ssh_key: no
+
+- name: change permissions
+  file: 
+    path: "{{ hadoop_user_home }}"
+    state: directory
+    owner: "{{ hadoop_user }}"
+    group: "{{ hadoop_user }}"
+    recurse: yes
+
+
+- name: Set authorized key taken from file
+  ansible.posix.authorized_key:
+    user: "{{ hadoop_user }}"
+    state: present
+    key: "{{ lookup('file', 'buffer/id_rsa.pub') }}"
+
+- name: Create dataNode dir
+  file: 
+    path: "{{hadoop_dfs_datanode_data_dir}}"
+    state: directory
+    owner: "{{ hadoop_user }}"
+    group: "{{ hadoop_user }}"

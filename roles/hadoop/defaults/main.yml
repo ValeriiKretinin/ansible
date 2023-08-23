@@ -1,0 +1,65 @@
+hadoop_user: hadoop
+hadoop_user_home: "/usr/local/{{ hadoop_user }}"
+hadoop_version: 3.3.2
+hadoop_url: "https://downloads.apache.org/hadoop/common/hadoop-{{hadoop_version}}/hadoop-{{hadoop_version}}.tar.gz"
+hadoop_dfs_namenode_name_dir: "{{ hadoop_user_home }}/data/nameNode"
+hadoop_dfs_datanode_data_dir: "{{ hadoop_user_home }}/data/dataNode"
+
+hadoop_maximum_applications: 10000
+hadoop_maximum_am_resource_percent: ".1"
+hadoop_resource_calculator: "org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator"
+hadoop_root_queues: default
+hadoop_root_default_capacity: 100
+hadoop_root_default_user_limit_factor: 1
+hadoop_root_default_maximum_capacity: 100
+hadoop_root_default_state: RUNNING
+hadoop_root_default_acl_submit_applications: "*"
+hadoop_root_default_acl_administer_queue: "*"
+hadoop_root_default_acl_application_max_priority: "*"
+hadoop_root_default_maximum_application_lifetime: "-1"
+hadoop_root_default_default_application_lifetime: "-1"
+hadoop_capacity_node_locality_delay: 40
+hadoop_rack_locality_additional_delay: "-1"
+hadoop_queue_mappings: ""
+hadoop_queue_mappings_override_enable: "false"
+hadoop_per_node_heartbeat_maximum_offswitch_assignments: 1
+hadoop_application_fail_fast: "false"
+hadoop_workflow_priority_mappings: ""
+hadoop_workflow_priority_mappings_override_enable: "false"
+count_workers: "{{ groups['hadoop-worker'] | length }}"
+
+hadoop:
+  hdfs:
+    filename:  ~/hadoop/etc/hadoop/hdfs-site.xml
+    vars:
+      dfs.namenode.name.dir: "{{hadoop_dfs_namenode_name_dir}}"
+      dfs.datanode.data.dir: "{{hadoop_dfs_datanode_data_dir}}"
+      dfs.replication: "{{ 3 if count_workers | int > 3 else count_workers }}"
+      dfs.namenode.datanode.registration.ip-hostname-check: "false"
+  core:
+    filename:  ~/hadoop/etc/hadoop/core-site.xml
+    vars:
+      fs.defaultFS: "hdfs://{{ hadoop_ha_nameservice_id }}"
+      ha.zookeeper.quorum: "{{ hadoop_zookeeper_quorum }}"
+  mapred:
+    filename:  ~/hadoop/etc/hadoop/mapred-site.xml
+    vars:
+      mapreduce.framework.name: "yarn"
+      yarn.app.mapreduce.am.env: "HADOOP_MAPRED_HOME=$HADOOP_HOME"
+      mapreduce.map.env: "HADOOP_MAPRED_HOME=$HADOOP_HOME"
+      mapreduce.reduce.env: "HADOOP_MAPRED_HOME=$HADOOP_HOME"
+      yarn.app.mapreduce.am.resource.mb: "{{ (ansible_memory_mb.real.total*0.25)|round|int }}"
+      mapreduce.map.memory.mb: "{{ (ansible_memory_mb.real.total * 0.1)|round|int  }}"
+      mapreduce.reduce.memory.mb: "{{ (ansible_memory_mb.real.total * 0.1)|round|int }}"
+  yarn:
+    filename: ~/hadoop/etc/hadoop/yarn-site.xml
+    vars:
+      yarn.acl.enable: 0
+      yarn.resourcemanager.hostname: "{{ inventory_hostname }}"
+      yarn.nodemanager.aux-services: "mapreduce_shuffle"
+      yarn.log-aggregation-enable: "false"
+      yarn.nodemanager.log-aggregation.roll-monitoring-interval-seconds: 86400
+      yarn.nodemanager.resource.memory-mb: "{{ ansible_memory_mb.real.total - 512 }}"
+      yarn.scheduler.maximum-allocation-mb: "{{ ansible_memory_mb.real.total - 512 }}"
+      yarn.scheduler.minimum-allocation-mb: "{{ (ansible_memory_mb.real.total * 0.05)|round|int }}"
+      yarn.nodemanager.vmem-check-enabled: "false"

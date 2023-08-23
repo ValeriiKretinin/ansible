@@ -1,0 +1,14 @@
+<configuration>
+    <property>
+        <name>dfs.journalnode.edits.dir</name>
+        <value>qjournal://{{ hadoop_zookeeper_quorum }}:8485/getJournal?journalId=hadoop</value>
+    </property>
+    <property>
+        <name>dfs.journalnode.http-address</name>
+        <value>0.0.0.0:8480</value>
+    </property>
+    <property>
+        <name>dfs.journalnode.https-address</name>
+        <value>0.0.0.0:8481</value>
+    </property>
+</configuration>

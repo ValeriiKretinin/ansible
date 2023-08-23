@@ -1,0 +1,27 @@
+hadoop_maximum_am_resource_percent: 1
+hadoop_ha_nameservice_id: "hadoop-master"
+hadoop_zookeeper_quorum: "{{ groups['zookeeper'] | join(',') }}"
+
+hadoop:
+   yarn:
+     vars:
+       yarn.nodemanager.resource.cpu-vcores: 8
+       yarn.scheduler.maximum-allocation-vcores: 8
+       yarn.resourcemanager.ha.rm-ids: "rm1,rm2"
+       yarn.resourcemanager.hostname.rm1: "{{ groups['hadoop-master'][0] }}"
+       yarn.resourcemanager.hostname.rm2: "{{ groups['hadoop-master'][1] }}"
+
+   hdfs:
+     vars:
+       dfs.replication: 2
+       dfs.ha.namenodes.hadoop-master: "nn1,nn2"
+       ha.zookeeper.quorum: "{{ hadoop_zookeeper_quorum }}"
+       dfs.namenode.rpc-address.hadoop-master.nn1: "{{ groups['hadoop-master'][0] }}:8020"
+       dfs.namenode.rpc-address.hadoop-master.nn2: "{{ groups['hadoop-master'][1] }}:8020"
+       dfs.namenode.http-address.hadoop-master.nn1: "{{ groups['hadoop-master'][0] }}:50070"
+       dfs.namenode.http-address.hadoop-master.nn2: "{{ groups['hadoop-master'][1] }}:50070"
+       dfs.namenode.failover.proxy.provider.hadoop-master: "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider"
+       dfs.client.failover.proxy.provider.hadoop-master: "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider"
+       dfs.ha.automatic-failover.enabled: "true"
+       dfs.nameservices: "{{ hadoop_ha_nameservice_id }}"
+       dfs.ha.fencing.methods: "sshfence"

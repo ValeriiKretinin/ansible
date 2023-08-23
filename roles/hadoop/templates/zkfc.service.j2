@@ -1,0 +1,14 @@
+[Unit]
+Description=Hadoop ZKFC
+After=network.target
+
+[Service]
+User={{ hadoop_user }}
+Group={{ hadoop_user }}
+Environment=JAVA_HOME=/usr/lib/jvm/jre
+ExecStart={{ hadoop_user_home }}/hadoop/bin/hdfs zkfc
+ExecStop=/bin/kill -15 $MAINPID
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,53 @@
+- name: Create user Hadoop
+  ansible.builtin.user:
+    name: "{{ hadoop_user }}"
+    home: "{{ hadoop_user_home }}"
+    generate_ssh_key: yes
+    ssh_key_bits: 4096
+
+- name: change permissions
+  file: 
+    path: "{{ hadoop_user_home }}"
+    state: directory
+    owner: "{{ hadoop_user }}"
+    group: "{{ hadoop_user }}"
+    recurse: yes
+
+- name: Get Master's ~/.ssh/id_rsa.pub file
+  ansible.builtin.fetch:
+    src: ~/.ssh/id_rsa.pub
+    dest: buffer/id_rsa.pub
+    flat: yes
+  become: yes
+  become_user: "{{ hadoop_user }}"
+
+- name: Get Master's ~/.ssh/id_rsa file
+  ansible.builtin.fetch:
+    src: ~/.ssh/id_rsa
+    dest: buffer/id_rsa
+    flat: yes
+  become: yes
+  become_user: "{{ hadoop_user }}"
+
+- name: Set authorized key taken from file
+  ansible.posix.authorized_key:
+    user: "{{ hadoop_user }}"
+    state: present
+    key: "{{ lookup('file', 'buffer/id_rsa.pub') }}"
+
+- name: Get Master's ~/.ssh/id_rsa.pub file
+  ansible.builtin.slurp:
+    src: "~/.ssh/id_rsa.pub"
+  register: ssh_pub_key
+  become: yes
+  become_user: "{{ hadoop_user }}"
+  run_once: true
+
+- name: Distribute the public key to all other masters
+  ansible.builtin.lineinfile:
+    path: "~/.ssh/authorized_keys"
+    line: "{{ ssh_pub_key['content'] | b64decode }}"
+  become: yes
+  become_user: "{{ hadoop_user }}"
+
+

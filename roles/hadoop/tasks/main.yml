@@ -1,0 +1,99 @@
+- name: Install OpenJDK 1.8.0
+  ansible.builtin.yum:
+    name: java-1.8.0-openjdk, java-1.8.0-openjdk-devel
+    state: present
+
+- name: Run Master specific steps
+  include: master-prepare.yml
+  when: "'hadoop-master' in group_names"
+
+- name: Run Worker specific steps
+  include: worker-prepare.yml
+  when: "'hadoop-worker' in group_names or 'spark' in group_names"
+
+- name: Set JAVA_HOME env variable
+  ansible.builtin.blockinfile:
+    path: ~/.bashrc
+    block: |
+      export JAVA_HOME=/usr/lib/jvm/jre
+      export PATH=$PATH:$JAVA_HOME
+    create: yes
+    marker: "# {mark} ANSIBLE MANAGED BLOCK JAVA_HOME"
+  become: yes
+  become_user: "{{ hadoop_user }}"
+
+- name: Check if Hadoop is installed
+  shell: "hadoop version > /dev/null 2>&1 && echo $(hadoop version | grep Hadoop | awk '{print $2}') || echo 0.0.0"
+  register: installed
+  changed_when: false
+  become: yes
+  become_user: "{{ hadoop_user }}"
+  become_flags: -i
+  check_mode: no
+  
+- name: test
+  ansible.builtin.debug:
+    msg: "{{ installed }}"
+
+- name: Install Hadoop
+  block:
+    - name: Download hadoop.tar.gz
+      get_url:
+        url: "{{ hadoop_url }}"
+        dest: ~/hadoop.tar.gz
+#        checksum: "sha512:{{ hadoop_url }}.sha512"
+
+    - name: Extract hadoop.tar.gz into ~/
+      ansible.builtin.unarchive:
+        src: ~/hadoop.tar.gz
+        dest: ~/
+        remote_src: yes
+        creates: "~/hadoop-{{hadoop_version}}"
+
+    - name: Link hadoop folder
+      ansible.builtin.file:
+        src: ~/hadoop-{{ hadoop_version }}
+        dest: ~/hadoop
+        state: link
+
+  become: yes
+  become_user: "{{ hadoop_user }}"
+  when: 
+    - (installed.stdout is not version(hadoop_version, '='))
+    - not ansible_check_mode
+
+- name: Set Environment Variables .bashrc
+  ansible.builtin.blockinfile:
+    path: ~/.bash_profile
+    block: |
+      if [ -n "$BASH_VERSION" ]; then
+          if [ -f "$HOME/.bashrc" ]; then
+              . "$HOME/.bashrc"
+          fi
+      fi
+  become: yes
+  become_user: "{{ hadoop_user }}"
+
+- name: Set Environment Variables .bash_profile
+  ansible.builtin.lineinfile:
+    path: ~/.bash_profile
+    line: "PATH={{ hadoop_user_home }}/hadoop/bin:{{ hadoop_user_home }}/hadoop/sbin:$PATH"
+    create: yes
+  become: yes
+  become_user: "{{ hadoop_user }}"
+
+- name: Set Environment Variables .bashrc
+  ansible.builtin.blockinfile:
+    path: ~/.bashrc
+    block: |
+      export HADOOP_HOME={{ hadoop_user_home }}/hadoop
+      export PATH=${PATH}:${HADOOP_HOME}/bin:${HADOOP_HOME}/sbin
+    marker: "# {mark} ANSIBLE MANAGED BLOCK HADOOP_HOME"
+  become: yes
+  become_user: "{{ hadoop_user }}"
+
+- name: Run Master configuration
+  include: master-configure.yml
+  when: "'hadoop-master' in group_names"
+  become: yes
+  become_user: "{{ hadoop_user }}"

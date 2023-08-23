@@ -1,0 +1,180 @@
+- name: Configure Capacity Scheduler
+  template:
+    src: "capacity-scheduler.xml.j2"
+    dest: "~/hadoop/etc/hadoop/capacity-scheduler.xml"
+    owner: "{{ hadoop_user }}"
+    group: "{{ hadoop_user }}"
+    mode: u=rw,g=r,o=r
+  become: yes
+  become_user: "{{ hadoop_user }}"
+  become_flags: -i
+  tags:
+    - 'config'
+
+- name: Configure Workers
+  copy:
+    dest: ~/hadoop/etc/hadoop/workers
+    content: "{% for item in groups['hadoop-worker'] %}{{ item + '\n'}}{% endfor %}"
+  become: yes
+  become_user: "{{ hadoop_user }}"
+  become_flags: -i
+  tags:
+    - 'config'
+
+- name: Configure Masters
+  copy:
+    dest: ~/hadoop/etc/hadoop/masters
+    content: "{% for item in groups['hadoop-master'] %}{{ item + '\n'}}{% endfor %}"
+  become: yes
+  become_user: "{{ hadoop_user }}"
+  become_flags: -i
+  tags:
+    - 'config'
+
+- name: combite dicts with default and custom configs
+  set_fact:
+    hadoop_combine_configs: "{{ hadoop | combine(hadoop_settings, recursive=True) }}"
+
+- name: get list from combine config
+  set_fact:
+    hadoop_configs: >-
+      {{
+        (query('dict', hadoop_combine_configs) | list) 
+        | map(attribute="key") | sort
+      }}
+
+- name: Create all config files
+  template:
+    mode: 0644
+    src: "config.xml.j2"
+    dest: "{{ hadoop_combine_configs[hadoop_config_name].filename }}"
+  vars:
+    filevars: "{{ hadoop_combine_configs[hadoop_config_name].vars | dict2items }}"
+  loop: "{{ hadoop_configs }}"
+  loop_control:
+    loop_var: "hadoop_config_name"
+  become: yes
+  become_user: "{{ hadoop_user }}"
+  become_flags: -i
+  tags:
+    - 'config'
+
+- name: Copy config to workers
+  shell: |
+    for i in `find ~/hadoop/etc/hadoop/ -maxdepth 1 -type f`; do scp -o StrictHostKeyChecking=no $i {{ item }}:{{ hadoop_user_home }}/hadoop/etc/hadoop/; done
+  with_items: "{{ groups['hadoop-worker'] }}"
+
+- name: Copy config to spark
+  shell: |
+    for i in `find ~/hadoop/etc/hadoop/ -maxdepth 1 -type f`; do scp -o StrictHostKeyChecking=no $i {{ item }}:{{ hadoop_user_home }}/hadoop/etc/hadoop/; done
+  with_items: "{{ groups['spark'] }}"
+  ignore_errors: true
+
+- name: Format HDFS
+  command:
+    cmd: "hdfs namenode -format"
+    creates: "{{ hadoop_dfs_namenode_name_dir }}"
+  become: yes
+  become_user: "{{ hadoop_user }}"
+  become_flags: -i
+  tags:
+    - 'config'
+
+- name: Hadoop | Create Unit file
+  template:
+    src: "{{item}}.j2"
+    dest: "/lib/systemd/system/{{item}}"
+    mode: 644
+  notify:
+    - reload systemctl
+  with_items:
+    - hadoop.service
+    - yarn.service
+  tags:
+    - systemd
+    - config
+  become: yes
+  become_user: root
+
+- name: Hadoop | Start services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  with_items:
+    - hadoop.service
+    - yarn.service
+  tags:
+    - systemd
+  become: yes
+  become_user: root
+
+- name: Configure JournalNode
+  template:
+    src: "journalnode.xml.j2"
+    dest: "~/hadoop/etc/hadoop/journalnode.xml"
+    owner: "{{ hadoop_user }}"
+    group: "{{ hadoop_user }}"
+    mode: u=rw,g=r,o=r
+  become: yes
+  become_user: "{{ hadoop_user }}"
+  tags:
+    - 'config'
+
+- name: Hadoop | Create JournalNode Unit file
+  template:
+    src: "journalnode.service.j2"
+    dest: "/lib/systemd/system/journalnode.service"
+    mode: 644
+  notify:
+    - reload systemctl
+  tags:
+    - systemd
+    - config
+  become: yes
+  become_user: root
+
+- name: Hadoop | Start JournalNode service
+  ansible.builtin.systemd:
+    name: "journalnode.service"
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  tags:
+    - systemd
+  become: yes
+  become_user: root
+
+- name: Initialize ZKFC
+  command:
+    cmd: "hdfs zkfc -formatZK"
+    creates: "{{ hadoop_dfs_namenode_name_dir }}"
+  become: yes
+  become_user: "{{ hadoop_user }}"
+  tags:
+    - 'config'
+
+- name: Hadoop | Create ZKFC Unit file
+  template:
+    src: "zkfc.service.j2"
+    dest: "/lib/systemd/system/zkfc.service"
+    mode: 644
+  notify:
+    - reload systemctl
+  tags:
+    - systemd
+    - config
+  become: yes
+  become_user: root
+
+- name: Hadoop | Start ZKFC service
+  ansible.builtin.systemd:
+    name: "zkfc.service"
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  tags:
+    - systemd
+  become: yes
+  become_user: root

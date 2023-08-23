@@ -1,0 +1,15 @@
+- name: Install hadoop
+  hosts:
+  - hadoop
+
+  gather_facts: True
+  become: yes
+
+  vars:
+    hadoop_settings: "{{ hadoop }}"
+
+  tasks:
+    - include_role: 
+        name: infra/apache/hadoop
+      tags: 
+        - hadoop

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+{% if filevars is defined %}
+{% for item in filevars %}
+<property>
+  <name>{{ item.key }}</name>
+  <value>{{ item.value }}</value>
+</property>
+{% endfor %}
+{% endif %}
+</configuration>
