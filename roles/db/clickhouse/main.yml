@@ -1,0 +1,13 @@
+---
+# tasks file for clickhouse
+- include_tasks:
+    file: ch-roles/roles.yml
+    apply:
+      tags: [roles, clickhouse_roles, create, SQL_driven]
+  tags: [clickhouse_roles]
+
+- include_tasks:
+    file: ch-roles/perms_and_privs.yml
+    apply:
+      tags: [roles, clickhouse_roles, select, SQL_driven]
+  tags: [clickhouse_roles]

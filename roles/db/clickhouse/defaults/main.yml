@@ -1,0 +1,7 @@
+---
+# defaults file for clickhouse
+
+clickhouse_custom_roles: []
+clickhouse_custom_grants: []
+clickhouse_custom_grant_roles: []
+clickhouse_custom_grants_previous_cleanup: []

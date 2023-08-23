@@ -1,0 +1,18 @@
+clickhouse_custom_roles:
+  - name: "role_name" # Specify role name
+
+clickhouse_custom_grants:
+  - on:
+    databases: [ "your_DB" ]
+    tables: [ "*" ] # Use "*" for all tables or specify table names
+    privileges: [ CREATE VIEW ] # Specify grants
+    to: [ role_name ]
+
+# Grant users with created role
+clickhouse_custom_grant_roles:
+  - roles: [ role_name ]
+    to: [ some_user ]
+
+# Better to use HashiCorp Vault or similar tool, but you can put creds open for test like user_admin
+clickhouse_user_admin: "ch_roles_user"
+clickhouse_admin_password: "{{ lookup('community.hashi_vault.vault_read', 'your_path_to_hashicorp_secret').data.data.ch_roles_user }}"
