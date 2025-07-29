@@ -37,25 +37,6 @@ disk_partitions:
     opts: "defaults"                 # Mount options (optional)
 ```
 
-### Alternative Configuration with Device Path
-
-You can also specify disks using device paths directly:
-
-```yaml
-disk_partitions:
-  - device: "/dev/disk/by-role/kafka-0"  # Direct device path
-    number: "1"
-    state: present
-    fs_type: ext4
-    label: gpt
-    resize: true
-    mount_state: "mounted"
-    mount_point: "/var/lib/kafka"
-    owner: cp-kafka
-    group: confluent
-    role_name: "kafka-0"  # Used for udev rules
-```
-
 ## 🚀 How It Works
 
 ### 1. SCSI Controller Rescan
