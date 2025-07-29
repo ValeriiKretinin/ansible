@@ -9,8 +9,9 @@ ansible/
 ├── inventory/            # Houses Ansible inventory files
 ├── playbooks/            # Playbooks for diverse automation tasks
 └── roles/                # Ansible roles for various components
-    └── clickhouse/       # Role dedicated to ClickHouse role management
-    └── hadoop/           # Role for deploying HA Hadoop cluster
+    ├── clickhouse/       # Role dedicated to ClickHouse role management
+    ├── hadoop/           # Role for deploying HA Hadoop cluster
+    └── format-disk-r9/   # Role for automatic disk formatting and mounting by SCSI ID
 ```
 
 
@@ -24,6 +25,10 @@ This role is tailored for managing roles within ClickHouse. It facilitates the c
 ### 2. HA Hadoop Deployment
 
 This role is tailored for setting up a High Availability Hadoop cluster. It manages the installation of Hadoop, setting up the master and worker nodes, and ensures the environment is correctly configured for a HA Hadoop setup. For a detailed overview and configuration guide, check out the [Hadoop role's README](ansible/roles/hadoop/README.md).
+
+### 3. Format Disk R9
+
+This role provides intelligent disk management for Rocky Linux 9 and higher systems. It automatically detects disks based on SCSI unit numbers, formats them with specified filesystems, and mounts them using UUID for persistent identification. The role supports both new disk formatting and existing disk resizing, making it ideal for infrastructure automation scenarios. For comprehensive documentation and usage examples, refer to the [Format Disk R9 role's README](ansible/roles/format-disk-r9/README.md).
 
 ## 📖 Usage
 

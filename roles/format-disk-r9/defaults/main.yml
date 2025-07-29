@@ -1,0 +1,23 @@
+---
+disk_partitions: []
+  # - disk_unit: 1  # SCSI ID of the disk (matches disk_unit from Terraform)
+  #   number: "1"
+  #   state: present
+  #   fs_type: ext4
+  #   label: gpt
+  #   resize: true
+  #   mount_state: "mounted"
+  #   mount_point: "/var/lib/kafka"
+  #   owner: cp-kafka
+  #   group: confluent
+  # - device: "/dev/disk/by-role/kafka-0"
+  #   number: "1"
+  #   state: present
+  #   fs_type: ext4
+  #   label: gpt
+  #   resize: true
+  #   mount_state: "mounted"
+  #   mount_point: "/var/lib/kafka"
+  #   owner: cp-kafka
+  #   group: confluent
+  #   role_name: "kafka-0"  # This will be used for udev rules 

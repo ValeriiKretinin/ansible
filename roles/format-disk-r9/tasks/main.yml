@@ -1,0 +1,63 @@
+---
+- name: Rescan scsi controllers
+  shell: 'for i in $(ls "/sys/class/scsi_host/"); do echo "- - -" > "/sys/class/scsi_host/$i/scan"; done'
+  become: true
+
+- name: Rescan size on found disks
+  shell: "for i in $(ls '/sys/class/block/' | grep -E '^sd.$'); do echo 1 > '/sys/class/block/'$i'/device/rescan'; done"
+  become: true
+
+- name: Get disk mapping
+  ansible.builtin.shell: "lsscsi -g | grep disk | awk '{print $(NF-1) \":\" $NF}'"
+  register: disk_mapping
+  changed_when: false
+
+- name: Create disk mapping dictionary
+  ansible.builtin.set_fact:
+    sg_to_sd: "{{ {} }}"
+
+- name: Update disk mapping dictionary
+  ansible.builtin.set_fact:
+    sg_to_sd: "{{ sg_to_sd | combine({item.split(':')[1]: item.split(':')[0]}) }}"
+  with_items: "{{ disk_mapping.stdout_lines }}"
+
+- name: Check if specified disks exist on the host
+  ansible.builtin.stat:
+    path: "{{ sg_to_sd['/dev/sg' + item.disk_unit | string] }}"
+  register: disks_status
+  with_items: "{{ disk_partitions }}"
+  ignore_errors: yes
+
+- name: Fail if any specified disk is not found
+  ansible.builtin.fail:
+    msg: "Disk /dev/sg{{ item.item.disk_unit }} not found on the host"
+  when: not item.stat.exists
+  with_items: "{{ disks_status.results }}"
+  ignore_errors: yes
+
+- name: Get current mounted disks
+  ansible.builtin.shell: "grep -E '^UUID=' /etc/fstab | grep '{{ item.item.mount_point }}'"
+  register: fstab_result
+  with_items: "{{ disks_status.results }}"
+  ignore_errors: yes
+
+- name: Set disk status
+  ansible.builtin.set_fact:
+    disk_status: "{{ disk_status | default({}) | combine({item.item.mount_point: {'exists': item.stat.exists, 'in_fstab': fstab_result.results[index].rc == 0}}) }}"
+  with_items: "{{ disks_status.results }}"
+  loop_control:
+    index_var: index
+
+- name: Include task with resizing disks
+  ansible.builtin.include_tasks: resize.yml
+  with_items: "{{ disks_status.results }}"
+  when: 
+    - item.stat.exists
+    - disk_status[item.item.mount_point].in_fstab
+
+- name: Include task with formatting new disks
+  ansible.builtin.include_tasks: format.yml
+  with_items: "{{ disks_status.results }}"
+  when: 
+    - item.stat.exists
+    - not disk_status[item.item.mount_point].in_fstab 

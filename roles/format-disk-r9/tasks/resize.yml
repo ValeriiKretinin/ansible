@@ -1,0 +1,41 @@
+---
+- name: Prepare vars
+  ansible.builtin.set_fact:
+    disk_name: "{{ sg_to_sd['/dev/sg' + item.item.disk_unit | string] | split('/') | last }}"
+    part_name: "{{ sg_to_sd['/dev/sg' + item.item.disk_unit | string] | split('/') | last }}{{ item.item.number }}"
+
+- name: Fix GPT table after resize
+  ansible.builtin.command: "sgdisk -e {{ sg_to_sd['/dev/sg' + item.item.disk_unit | string] }}"
+  when: 
+    - part_name in ansible_devices[disk_name]['partitions']
+    - ansible_devices[disk_name]['sectors']|int - ansible_devices[disk_name]['partitions'][part_name]['sectors']|int > 10000
+    - item.item.fs_type == "ext4"
+    - item.item.label == "gpt"
+
+- name: Resize partition to maximum
+  ansible.builtin.command: "growpart {{ sg_to_sd['/dev/sg' + item.item.disk_unit | string] }} {{ item.item.number | default('1') }}"
+  become: true
+  ignore_errors: yes
+  when: 
+    - part_name in ansible_devices[disk_name]['partitions']
+    - ansible_devices[disk_name]['sectors']|int - ansible_devices[disk_name]['partitions'][part_name]['sectors']|int > 10000
+
+- name: Run partprobe to update partition table
+  ansible.builtin.command: "partprobe {{ sg_to_sd['/dev/sg' + item.item.disk_unit | string] }}"
+  when: 
+    - part_name in ansible_devices[disk_name]['partitions']
+    - ansible_devices[disk_name]['sectors']|int - ansible_devices[disk_name]['partitions'][part_name]['sectors']|int > 10000
+
+- name: Resize filesystem to match if ext4
+  ansible.builtin.command: "resize2fs {{ sg_to_sd['/dev/sg' + item.item.disk_unit | string] }}{{ item.item.number }}"
+  when: 
+    - part_name in ansible_devices[disk_name]['partitions']
+    - item.item.fs_type == "ext4" 
+    - ansible_devices[disk_name]['sectors']|int - ansible_devices[disk_name]['partitions'][part_name]['sectors']|int > 10000
+
+- name: Resize filesystem to match if xfs
+  ansible.builtin.command: "xfs_growfs {{ sg_to_sd['/dev/sg' + item.item.disk_unit | string] }}{{ item.item.number }}"
+  when: 
+    - part_name in ansible_devices[disk_name]['partitions']
+    - item.item.fs_type == "xfs"
+    - ansible_devices[disk_name]['sectors']|int - ansible_devices[disk_name]['partitions'][part_name]['sectors']|int > 10000 

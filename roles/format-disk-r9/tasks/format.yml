@@ -1,0 +1,44 @@
+---
+- name: Create a new primary partition
+  community.general.parted:
+    device: "{{ sg_to_sd['/dev/sg' + item.item.disk_unit | string] }}"
+    number: "{{ item.item.number | default('1') }}"
+    state: "{{ item.item.state | default(omit) }}"
+    fs_type: "{{ item.item.fs_type | default('xfs') }}"
+    label: "{{ item.item.label | default('gpt') }}"
+    resize: "{{ item.item.resize | default(omit) }}"
+    unit: "{{ item.item.unit | default(omit) }}"
+    part_type: "{{ item.item.part_type | default(omit) }}"
+    part_start: "{{ item.item.part_start | default(omit) }}"
+    part_end: "{{ item.item.part_end | default(omit) }}"
+  become: true
+
+- name: Create filesystem
+  community.general.filesystem:
+    fstype: "{{ item.item.fs_type }}"
+    dev: "{{ sg_to_sd['/dev/sg' + item.item.disk_unit | string] }}{{ item.item.number }}"
+  become: true
+
+- name: Get UUID of the partition
+  ansible.builtin.shell: "blkid -s UUID -o value {{ sg_to_sd['/dev/sg' + item.item.disk_unit | string] }}{{ item.item.number }}"
+  register: uuid_result
+  changed_when: false
+
+- name: Mount volume using UUID
+  ansible.posix.mount:
+    path: "{{ item.item.mount_point }}"
+    src: "UUID={{ uuid_result.stdout }}"
+    fstype: "{{ item.item.fs_type }}"
+    opts: "{{ item.item.opts }}"
+    state: mounted
+  become: true
+
+- name: Change owner on mount mount point
+  ansible.builtin.file:
+    path: "{{ item.item.mount_point }}"
+    state: directory
+    owner: "{{ item.item.owner }}"
+    group: "{{ item.item.group }}"
+    mode: '0755'
+  become: true
+  ignore_errors: true
